@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<map version="1.5" tiledversion="1.7.0" orientation="orthogonal" renderorder="right-down" width="128" height="16" tilewidth="16" tileheight="16" infinite="0" nextlayerid="8" nextobjectid="86">
+<map version="1.5" tiledversion="1.7.0" orientation="orthogonal" renderorder="right-down" width="128" height="16" tilewidth="16" tileheight="16" infinite="0" nextlayerid="8" nextobjectid="88">
  <editorsettings>
-  <export target="level.lua" format="lua"/>
+  <export target="level_2.lua" format="lua"/>
  </editorsettings>
  <tileset firstgid="1" name="tileset" tilewidth="16" tileheight="16" tilecount="64" columns="8">
   <image source="atlas.png" width="128" height="128"/>
@@ -81,5 +81,9 @@
  <objectgroup color="#ff0000" id="6" name="deathzones">
   <object id="84" x="-16" y="256" width="2064" height="128"/>
  </objectgroup>
- <objectgroup id="4" name="objects"/>
+ <objectgroup color="#00aaff" id="4" name="objects">
+  <object id="86" type="player" x="80" y="192">
+   <point/>
+  </object>
+ </objectgroup>
 </map>

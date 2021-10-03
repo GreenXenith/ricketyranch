@@ -2,13 +2,13 @@
 TODO
 - Mechanics
  - Object spawning
-  - Player
   - Enemies
   - Collectables (optional)
  - Enemies
   - Defined path
   - Stomp-to-die
  - Title screen
+ - Window title
  - Level titles
  - Item carry
  - OPTIONAL: Collectables
@@ -65,6 +65,13 @@ local function after(timeout, callback, ...)
         args = {...},
     })
 end
+
+local window = {
+    scale = 1,
+    center = 0,
+    width = 0,
+    height = 0,
+}
 
 --- CUTSCENES ---
 local function exitCutscene()
@@ -130,11 +137,13 @@ end
 love.physics.setMeter(16)
 local boxworld = love.physics.newWorld(0, 64 * love.physics.getMeter(), true)
 
-local window = {
-    scale = 1,
-    center = 0,
-    width = 0,
-    height = 0,
+local world = {
+    map = nil,
+    foreground = nil,
+    colliders = {},
+    deathzones = {},
+    goals = {},
+    objects = {},
 }
 
 local player = {
@@ -149,7 +158,7 @@ local player = {
         loadAsset("boom.png")
         local img = loadAsset(self.texture)
 
-        self.body = love.physics.newBody(boxworld, 128, 128, "dynamic")
+        self.body = love.physics.newBody(boxworld, -32, -32, "dynamic")
         -- self.shape = love.physics.newRectangleShape(img:getWidth() - 1, img:getHeight() - 1)
         self.shape = love.physics.newCircleShape(img:getWidth() / 2 - 0.1)
         self.fixture = love.physics.newFixture(self.body, self.shape, 1)
@@ -157,10 +166,9 @@ local player = {
         self.body:setFixedRotation(true)
         self.body:setMass(1)
     end,
-    -- TODO: map-defined spawn point
     spawn = function(self)
-        self.body:setX(128)
-        self.body:setY(128)
+        self.body:setX(world.objects.player[1].x)
+        self.body:setY(world.objects.player[1].y)
     end,
     die = function(self)
         scene.freezeInput = true
@@ -196,14 +204,6 @@ local player = {
             love.graphics.draw(img, x, y, 0, self.facing, 1)
         end
     end,
-}
-
-local world = {
-    map = nil,
-    foreground = nil,
-    colliders = {},
-    deathzones = {},
-    goals = {},
 }
 
 local keybinds = {
@@ -336,6 +336,12 @@ local function loadLevel(num)
     spawnColliders("collisions", world.colliders, "collider", false)
     spawnColliders("deathzones", world.deathzones, "deathzone", true, 0.8)
     spawnColliders("goals", world.goals, "goal")
+
+    world.objects = {}
+    for _, o in pairs(world.map.layers["objects"].objects) do
+        world.objects[o.type] = world.objects[o.type] or {}
+        table.insert(world.objects[o.type], o)
+    end
 end
 
 world.update = function(dtime)
@@ -381,21 +387,17 @@ love.load = function()
     love.window.setMode(w, h, {resizable = true})
     -- love.window.maximize()
 
-    -- scene.update = world.update
-    -- scene.draw = world.draw
-
-    -- loadLevel(1)
-
     playCutscene("test", function()
         scene.update = world.update
         scene.draw = world.draw
 
         loadLevel(1)
+
+        player:init()
+        player:spawn()
     end)
 
     loadAsset("background.png")
-
-    player:init()
 end
 
 love.update = function(dtime)
