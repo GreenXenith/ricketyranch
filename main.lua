@@ -1,5 +1,5 @@
-local sti = require("sti")
-local anim8 = require("anim8")
+local sti = require("lib/sti")
+local anim8 = require("lib/anim8")
 local cutscenes = dofile("cutscenes.lua")
 
 local assets = {}
