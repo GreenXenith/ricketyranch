@@ -1,4 +1,7 @@
 local sti = require("sti")
+local anim8 = require("anim8")
+local cutscenes = dofile("cutscenes.lua")
+
 local assets = {}
 
 local function loadAsset(name)
@@ -7,7 +10,78 @@ local function loadAsset(name)
     return assets[name]
 end
 
--- Some arbitrary config
+local function emptyScene()
+    return {
+        freezeInput = false,
+        update = function() end,
+        draw = function() end,
+        data = {},
+    }
+end
+
+local scene = emptyScene()
+
+--- CUTSCENES ---
+local function exitCutscene()
+    local callback = scene.data.finished or function() end
+    scene = emptyScene()
+    callback()
+end
+
+local function playCutscene(name, finished)
+    scene.freezeInput = true
+
+    scene.data = {
+        def = cutscenes[name],
+        part_idx = 0, -- current part
+        timer = 0,
+        timeout = 0,
+        finished = finished, -- callback when done
+    }
+
+    scene.update = function(dtime)
+        local data = scene.data
+        if data.timer >= data.timeout and data.timeout > -1 then -- Setup first/next part
+            data.part_idx = data.part_idx + 1
+            if #data.def.parts < data.part_idx then
+                return exitCutscene()
+            end
+
+            data.part = data.def.parts[data.part_idx]
+            local part = data.part
+
+            data.timer = 0
+            data.timeout = part.timeout
+
+            data.img = assets[part.sheet] or loadAsset(part.sheet)
+            data.grid = anim8.newGrid(part.width, part.height or part.width, data.img:getWidth(), data.img:getHeight())
+            data.anim = anim8.newAnimation(data.grid("1-" .. part.frames, 1), part.duration or 0.5, function(anim)
+                if not scene.data.part.loop then
+                    anim:pauseAtEnd()
+
+                    -- This only makes sense if the anim loops
+                    if scene.data.part.timeout == -1 then
+                        -- To exit his part we set timeout to 0
+                        -- The next update will handle incrementing
+                        scene.data.timeout = 0
+                    end
+                end
+            end)
+        end
+
+        data.timer = data.timer + dtime
+        if data.anim then data.anim:update(dtime) end
+    end
+
+    scene.draw = function()
+        -- TODO: scale animation to window
+        if scene.data.anim then scene.data.anim:draw(scene.data.img, 0, 0) end
+    end
+end
+
+--- GAME WORLD ---
+-- world config
+-- the physics stuff is arbitrary
 love.physics.setMeter(16)
 local boxworld = love.physics.newWorld(0, 64 * love.physics.getMeter(), true)
 
@@ -65,7 +139,7 @@ local keybinds = {
 }
 
 local function controlDown(name)
-    if not keybinds[name] then return end
+    if not keybinds[name] or scene.freezeInput then return end
 
     for _, key in pairs(keybinds[name]) do
         if love.keyboard.isDown(key) then return true end
@@ -117,7 +191,7 @@ local function handleMovement()
     end
 
     if y < 0 and not player.jumping and not controlDown("jump") then
-        -- y = 0
+        y = 0
         -- TODO: fix upward hop up slopes
     end
 
@@ -189,12 +263,59 @@ local function loadLevel(num)
     spawnColliders("goals", world.goals, "goal")
 end
 
+world.update = function(dtime)
+    local zones = currentZones()
+
+    if zones.deathzone then
+        player:spawn()
+    end
+
+    if zones.goal then
+        player.current_level = player.current_level + 1
+        loadLevel(player.current_level)
+        player:spawn()
+
+        playCutscene("test", function()
+            scene.update = world.update
+            scene.draw = world.draw
+        end)
+    end
+
+    handleMovement() -- player movement
+
+    boxworld:update(dtime) -- box2d physics
+
+    world.map:update(dtime) -- map animations
+    world.foreground:update(dtime)
+end
+
+world.draw = function()
+    love.graphics.draw(assets["background.png"], 0, 0)
+
+    local params = {-math.max(0, player.body:getX() - window.center), 0, window.scale, window.scale}
+
+    world.map:draw(unpack(params))
+    player:draw()
+    world.foreground:draw(unpack(params))
+end
+
+--- MAIN FUNCS ---
 love.load = function()
     local w, h = love.graphics.getDimensions()
     love.window.setMode(w, h, {resizable = true})
     -- love.window.maximize()
 
-    loadLevel(1)
+    -- scene.update = world.update
+    -- scene.draw = world.draw
+
+    -- loadLevel(1)
+
+    playCutscene("test", function()
+        scene.update = world.update
+        scene.draw = world.draw
+
+        loadLevel(1)
+    end)
 
     loadAsset("horse.png")
     loadAsset("background.png")
@@ -207,42 +328,20 @@ love.update = function(dtime)
     window.scale = window.height / 256
     window.center = window.width / 2 / window.scale
 
-    local zones = currentZones()
-
-    if zones.deathzone then
-        return player:spawn()
-    end
-
-    if zones.goal then
-        player.current_level = player.current_level + 1
-        loadLevel(player.current_level)
-        return player:spawn()
-    end
-
-    handleMovement() -- player movement
-
-    boxworld:update(dtime) -- box2d physics
-
-    world.map:update(dtime) -- map animations
-    world.foreground:update(dtime)
+    scene.update(dtime)
 end
 
 local debugDraw = nil -- forward declaration
 
 love.draw = function()
     love.graphics.scale(window.scale)
-    love.graphics.draw(assets["background.png"], 0, 0)
 
-    local params = {-math.max(0, player.body:getX() - window.center), 0, window.scale, window.scale}
-
-    world.map:draw(unpack(params))
-    player:draw()
-    world.foreground:draw(unpack(params))
+    scene.draw()
 
     debugDraw()
 end
 
--- debug stuff
+--- DEBUG ---
 local DEBUG = {
     colliders = false,
     deathzones = false,
