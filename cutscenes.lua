@@ -7,7 +7,7 @@ return {
                 width = 128,
                 height = 128,
                 loop = false,
-                timeout = -1,
+                timeout = 0,
                 duration = 0.2,
             },
             {
@@ -16,7 +16,7 @@ return {
                 width = 128,
                 height = 128,
                 loop = false,
-                timeout = 2,
+                timeout = 0,
                 duration = 0.5,
             }
         }

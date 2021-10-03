@@ -1,3 +1,37 @@
+--[[
+TODO
+- Mechanics
+ - Object spawning
+  - Player
+  - Enemies
+  - Collectables (optional)
+ - Enemies
+  - Defined path
+  - Stomp-to-die
+ - Title screen
+ - Level titles
+ - Item carry
+ - OPTIONAL: Collectables
+  - Apples (coins)
+  - Specials (horseshoes, trophies, etc)
+ - Credits
+- Assets
+ - Horse walk
+ - OPTIONAL: Background detail
+ - Level 1: The Field
+  - Shed
+  - Scarecrow brute
+ - Level 2: The Barnyard
+  - ???
+ - Level 3: The Stables
+  - ???
+ - Custcenes
+  - Intro
+  - Level 1: Scarecrow brute
+  - Level 2: ???
+  - Level 3: Un-Stable
+]]--
+
 local sti = require("lib/sti")
 local anim8 = require("lib/anim8")
 local cutscenes = dofile("cutscenes.lua")
@@ -20,6 +54,17 @@ local function emptyScene()
 end
 
 local scene = emptyScene()
+
+local afterQueue = {} -- delayed callbacks
+
+local function after(timeout, callback, ...)
+    table.insert(afterQueue, {
+        timeout = timeout,
+        callback = callback,
+        timer = 0,
+        args = {...},
+    })
+end
 
 --- CUTSCENES ---
 local function exitCutscene()
@@ -99,8 +144,10 @@ local player = {
     texture = "horse.png",
     facing = 1,
     current_level = 1,
+    alive = true,
     init = function(self)
-        local img = assets[self.texture]
+        loadAsset("boom.png")
+        local img = loadAsset(self.texture)
 
         self.body = love.physics.newBody(boxworld, 128, 128, "dynamic")
         -- self.shape = love.physics.newRectangleShape(img:getWidth() - 1, img:getHeight() - 1)
@@ -115,11 +162,39 @@ local player = {
         self.body:setX(128)
         self.body:setY(128)
     end,
+    die = function(self)
+        scene.freezeInput = true
+        self.alive = false
+        self.body:setActive(false)
+
+        local grid = anim8.newGrid(32, 32, assets["boom.png"]:getWidth(), 32)
+        self.boom = anim8.newAnimation(grid("1-4", 1), 0.3 / 4, function()
+            self.boom = {draw = function() end, update = function() end} -- draw nothing
+            after(1, function()
+                self:spawn()
+
+                self.boom = nil
+                self.alive = true
+
+                self.body:setActive(true)
+                scene.freezeInput = false
+            end)
+        end)
+    end,
+    update = function(self, dtime)
+        if self.boom then self.boom:update(dtime) end
+    end,
     draw = function(self)
         local img = assets[self.texture]
         -- Keep player in center except when at map edge
-        local x = math.min(self.body:getX(), window.center) - img:getWidth() / 2 + (self.facing == 1 and 0 or img:getWidth())
-        love.graphics.draw(img, x, self.body:getY() - img:getHeight() / 2, 0, self.facing, 1)
+        local x, y = math.min(self.body:getX(), window.center) - img:getWidth() / 2 + (self.facing == 1 and 0 or img:getWidth()),
+                     self.body:getY() - img:getHeight() / 2
+
+        if self.boom then -- draw explosion
+            self.boom:draw(assets["boom.png"], x, y)
+        else -- draw horse
+            love.graphics.draw(img, x, y, 0, self.facing, 1)
+        end
     end,
 }
 
@@ -266,8 +341,8 @@ end
 world.update = function(dtime)
     local zones = currentZones()
 
-    if zones.deathzone then
-        player:spawn()
+    if zones.deathzone and player.alive then
+        player:die()
     end
 
     if zones.goal then
@@ -282,6 +357,7 @@ world.update = function(dtime)
     end
 
     handleMovement() -- player movement
+    player:update(dtime)
 
     boxworld:update(dtime) -- box2d physics
 
@@ -317,7 +393,6 @@ love.load = function()
         loadLevel(1)
     end)
 
-    loadAsset("horse.png")
     loadAsset("background.png")
 
     player:init()
@@ -327,6 +402,15 @@ love.update = function(dtime)
     window.width, window.height = love.graphics.getDimensions()
     window.scale = window.height / 256
     window.center = window.width / 2 / window.scale
+
+    -- Process after queue
+    for i, item in pairs(afterQueue) do
+        item.timer = item.timer + dtime
+        if item.timer >= item.timeout then
+            item.callback(unpack(item.args))
+            afterQueue[i] = nil
+        end
+    end
 
     scene.update(dtime)
 end
