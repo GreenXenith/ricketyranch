@@ -195,7 +195,7 @@ local player = {
     draw = function(self)
         local img = assets[self.texture]
         -- Keep player in center except when at map edge
-        local x, y = math.min(self.body:getX(), window.center) - img:getWidth() / 2 + (self.facing == 1 and 0 or img:getWidth()),
+        local x, y = math.min(self.body:getX(), window.center) - img:getWidth() / 2 + ((self.boom or self.facing == 1) and 0 or img:getWidth()),
                      self.body:getY() - img:getHeight() / 2
 
         if self.boom then -- draw explosion
