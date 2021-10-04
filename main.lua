@@ -1,29 +1,3 @@
---[[
-TODO
-- Mechanics
- - Title screen
- - Credits
- - Level titles
- - Item carry
- - OPTIONAL: Collectables (apples, horsehoes, trophies, etc)
- - OPTIONAL: Enemy paths
-- Assets
- - Horse walk
- - OPTIONAL: Background detail
- - Level 1: The Field
-  - Shed
-  - Scarecrow brute
- - Level 2: The Barnyard
-  - ???
- - Level 3: The Stables
-  - ???
- - Custcenes
-  - Intro
-  - Level 1: Scarecrow brute
-  - Level 2: ???
-  - Level 3: Un-Stable
-]]--
-
 local sti = require("lib/sti")
 local anim8 = require("lib/anim8")
 local cutscenes = dofile("cutscenes.lua")
@@ -64,6 +38,15 @@ local window = {
     width = 0,
     height = 0,
 }
+
+local title = true
+local function showTitle()
+    title = true
+    scene.freezeInput = true
+    scene.draw = function()
+        love.graphics.draw(assets["title.png"], (window.width / 2 / window.scale - 256 / 2), (window.height / 2 / window.scale - 256 / 2))
+    end
+end
 
 --- CUTSCENES ---
 local function exitCutscene()
@@ -118,8 +101,7 @@ local function playCutscene(name, finished)
     end
 
     scene.draw = function()
-        -- TODO: scale animation to window
-        if scene.data.anim then scene.data.anim:draw(scene.data.img, 0, 0) end
+        if scene.data.anim then scene.data.anim:draw(scene.data.img, (window.width / 2 / window.scale - scene.data.part.width / 2), (window.height / 2 / window.scale - scene.data.part.height / 2)) end
     end
 end
 
@@ -186,6 +168,14 @@ local player = {
     spawn = function(self)
         self.body:setX(world.objects.player[1].x)
         self.body:setY(world.objects.player[1].y)
+
+        self.jumping = false
+        self.facing = 1
+        self.touching = {
+            bottom = 0, top = 0,
+            left = 0, right = 0,
+        }
+        self.alive = true
     end,
     die = function(self)
         if not self.alive then return end
@@ -270,13 +260,18 @@ local contactCallbacks = {
         begin = function()
             after(0, function()
                 player.current_level = player.current_level + 1
-                world.loadLevel(player.current_level)
-                player:spawn()
+                local callback = showTitle
+                if player.current_level <= 3 then
+                    world.loadLevel(player.current_level)
+                    player:spawn()
 
-                playCutscene("test", function()
-                    scene.update = world.update
-                    scene.draw = world.draw
-                end)
+                    callback = function()
+                        scene.update = world.update
+                        scene.draw = world.draw
+                    end
+                end
+
+                playCutscene("level_" .. player.current_level - 1, callback)
             end)
         end
     }
@@ -417,6 +412,7 @@ local function spawnEnemies()
 end
 
 function world.loadLevel(num)
+    player.current_level = num
     world.map, world.foreground = loadMap("media/level_" .. num .. ".lua")
 
     spawnColliders("collisions", world.colliders, "collider", false)
@@ -463,6 +459,27 @@ world.draw = function()
     world.foreground:draw(unpack(params))
 end
 
+local function startGame()
+    if title then
+        title = false
+        scene.freezeInput = false
+        loadAsset("background.png")
+
+        player:init()
+
+        playCutscene("intro", function()
+            scene.update = world.update
+            scene.draw = world.draw
+
+            world.loadLevel(1)
+            player:spawn()
+        end)
+    end
+end
+
+love.mousepressed = startGame
+love.keypressed = startGame
+
 --- MAIN FUNCS ---
 love.load = function()
     local w, h = love.graphics.getDimensions()
@@ -471,17 +488,8 @@ love.load = function()
     love.window.setTitle("Rickety Ranch")
     love.window.setIcon(love.image.newImageData("media/icon.png"))
 
-    player:init()
-
-    playCutscene("test", function()
-        scene.update = world.update
-        scene.draw = world.draw
-
-        world.loadLevel(1)
-        player:spawn()
-    end)
-
-    loadAsset("background.png")
+    loadAsset("title.png")
+    showTitle()
 end
 
 love.update = function(dtime)

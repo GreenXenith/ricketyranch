@@ -1,4 +1,5 @@
 return {
+    blank = {parts={}},
     intro = {
         parts = {
             {
@@ -93,7 +94,51 @@ return {
                 },
             },
         }
-    }
+    },
+    level_2 = {
+        parts = {
+            {
+                sheet = "cutscenes/2-1.png",
+                frames = 11,
+                width = 256,
+                height = 256,
+                loop = false,
+                timeout = -1,
+                duration = {
+                    2, 2,
+                    1.5, 1.5, 1.5,
+                    2, 1.5 / 4, 1.5 / 4, 1.5 / 4, 1.5 / 4,
+                    3,
+                },
+            },
+        }
+    },
+    level_3 = {
+        parts = {
+            {
+                sheet = "cutscenes/3-1.png",
+                frames = 2,
+                width = 256,
+                height = 256,
+                loop = true,
+                timeout = 3,
+                duration = 1 / 6,
+            },
+            {
+                sheet = "cutscenes/3-2.png",
+                frames = 7,
+                width = 256,
+                height = 256,
+                loop = false,
+                timeout = -1,
+                duration = {
+                    2, 2,
+                    1 / 4, 1 / 4, 1 / 4, 2,
+                    8,
+                },
+            },
+        }
+    },
 }
 
 --[[
