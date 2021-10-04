@@ -271,7 +271,7 @@ local contactCallbacks = {
         begin = function()
             after(0, function()
                 player.current_level = player.current_level + 1
-                local callback = showTitle
+                local callback = function() showTitle() player.current_level = 1 end
                 if player.current_level <= 3 then
                     world.loadLevel(player.current_level)
                     player:spawn()
@@ -280,8 +280,6 @@ local contactCallbacks = {
                         scene.update = world.update
                         scene.draw = world.draw
                     end
-                else
-                    player.current_level = 1
                 end
 
                 playCutscene("level_" .. player.current_level - 1, callback)
