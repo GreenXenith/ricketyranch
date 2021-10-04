@@ -9,7 +9,7 @@ return {
   tilewidth = 16,
   tileheight = 16,
   nextlayerid = 8,
-  nextobjectid = 87,
+  nextobjectid = 88,
   properties = {},
   tilesets = {
     {
@@ -816,6 +816,19 @@ return {
           shape = "point",
           x = 96,
           y = 192,
+          width = 0,
+          height = 0,
+          rotation = 0,
+          visible = true,
+          properties = {}
+        },
+        {
+          id = 87,
+          name = "crow_-1_1",
+          type = "enemy",
+          shape = "point",
+          x = 400,
+          y = 112,
           width = 0,
           height = 0,
           rotation = 0,

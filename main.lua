@@ -146,22 +146,47 @@ local world = {
     objects = {},
 }
 
+local function clearBox2d(object)
+    object.fixture:destroy()
+    object.body:destroy()
+    object.shape:release()
+end
+
 local player = {
     walk_speed = 10 * love.physics.getMeter(),
     jump_speed = 24 * love.physics.getMeter(),
     jumping = false,
     texture = "horse.png",
     facing = 1,
+    touching = {
+        bottom = 0, top = 0,
+        left = 0, right = 0,
+    },
     current_level = 1,
     alive = true,
     init = function(self)
         loadAsset("boom.png")
         local img = loadAsset(self.texture)
+        local w, h = img:getWidth(), img:getHeight()
 
         self.body = love.physics.newBody(boxworld, -32, -32, "dynamic")
         -- self.shape = love.physics.newRectangleShape(img:getWidth() - 1, img:getHeight() - 1)
-        self.shape = love.physics.newCircleShape(img:getWidth() / 2 - 0.1)
+        self.shape = love.physics.newCircleShape(w / 2 - 0.1)
         self.fixture = love.physics.newFixture(self.body, self.shape, 1)
+
+        -- Edge sensors
+        -- This is kind of a hack. Contact normals were difficult to deal with.
+        self.edges = {
+            bottom = {shape = love.physics.newEdgeShape(-w / 5, h / 2, w / 5, h / 2)},
+            top = {shape = love.physics.newEdgeShape(-w / 5, -h / 2, w / 5, -h / 2)},
+            left = {shape = love.physics.newEdgeShape(-w / 2, h / 8, -w / 2, -h / 8)},
+            right = {shape = love.physics.newEdgeShape(w / 2, h / 8, w / 2, -h / 8)},
+        }
+
+        for side, v in pairs(self.edges) do
+            self.edges[side].fixture = love.physics.newFixture(self.body, v.shape, 0)
+            self.edges[side].fixture:setSensor(true)
+        end
 
         self.body:setFixedRotation(true)
         self.body:setMass(1)
@@ -171,6 +196,8 @@ local player = {
         self.body:setY(world.objects.player[1].y)
     end,
     die = function(self)
+        if not self.alive then return end
+
         scene.freezeInput = true
         self.alive = false
         self.body:setActive(false)
@@ -179,6 +206,7 @@ local player = {
         self.boom = anim8.newAnimation(grid("1-4", 1), 0.3 / 4, function()
             self.boom = {draw = function() end, update = function() end} -- draw nothing
             after(1, function()
+                world.loadLevel(self.current_level)
                 self:spawn()
 
                 self.boom = nil
@@ -221,60 +249,84 @@ local function controlDown(name)
     end
 end
 
-local function currentZones()
-    local zones = {}
-    for _, c in pairs(player.body:getContacts()) do
-        local f1, f2 = c:getFixtures()
-        -- Im not sure if fixtures are consistently ordered, so im explicitly getting the other body
-        local other = f1:getBody() == player.body and f2:getBody() or f1:getBody()
+local contactCallbacks = {
+    deathzone = {
+        begin = function() after(0, player.die, player) end
+    },
+    enemy = {
+        begin = function(_, o, c)
+            local ny = ({c:getNormal()})[2]
+            if ny > math.sqrt(2) / 2 then -- if on top, destroy enemy
+                local id = o:getBody():getUserData().id
+                clearBox2d(world.objects.enemy[id].box)
+                world.objects.enemy[id] = nil
+            else -- otherwise die
+                after(0, player.die, player)
+            end
+        end
+    },
+    goal = {
+        begin = function()
+            after(0, function()
+                player.current_level = player.current_level + 1
+                world.loadLevel(player.current_level)
+                player:spawn()
 
-        -- collisions dont cout as "zones"
-        if c:isTouching() and other:getUserData().type ~= "collision" then
-            zones[other:getUserData().type] = true
+                playCutscene("test", function()
+                    scene.update = world.update
+                    scene.draw = world.draw
+                end)
+            end)
+        end
+    }
+}
+
+local function doCallback(type, f1, f2, c)
+    if (f1 == player.fixture or f2 == player.fixture) then
+        local pfix = f1 == player.fixture and f1 or f2
+        local other = pfix == f1 and f2 or f1
+
+        local callback = contactCallbacks[other:getBody():getUserData().type]
+        if callback and callback[type] then callback[type](pfix, other, c) end
+    end
+end
+
+boxworld:setCallbacks(function(f1, f2, c)
+    if c:isTouching() then doCallback("begin", f1, f2, c) end
+end, function(f1, f2, c)
+    if c:isTouching() then doCallback("finish", f1, f2, c) end
+end)
+
+local function playerTouching(side)
+    for _, c in pairs(player.body:getContacts()) do
+        if (c:getFixtures()) == player.edges[side].fixture and c:isTouching() then
+            return true
         end
     end
-    return zones
 end
 
 local function handleMovement()
-    local touching = {}
-
-    for _, c in pairs(player.body:getContacts()) do
-        local f1, f2 = c:getFixtures()
-        local other = f1:getBody() == player.body and f2:getBody() or f1:getBody()
-
-        -- these values are arbitrary
-        if other:getUserData().type == "collider" then
-            local nx, ny = c:getNormal()
-            if ny < -0.6 then touching.bottom = true end
-            if ny > 0.6 then touching.top = true end
-            if nx < -0.8 then touching.right = true end
-            if nx > 0.8 then touching.left = true end
-        end
-    end
-
     local x, y = 0, ({player.body:getLinearVelocity()})[2]
 
-    if controlDown("left") and not touching.left then
+    if controlDown("left") and not playerTouching("left") then
         x = x - player.walk_speed
         player.facing = -1
     end
 
-    if controlDown("right") and not touching.right then
+    if controlDown("right") and not playerTouching("right") then
         x = x + player.walk_speed
         player.facing = 1
     end
 
     if y < 0 and not player.jumping and not controlDown("jump") then
-        y = 0
-        -- TODO: fix upward hop up slopes
+        y = 0 -- TODO: fix upward hop up slopes/slow uphill climb
     end
 
     player.body:setLinearVelocity(x, y)
 
     if y >= 0 then player.jumping = false end
 
-    if controlDown("jump") and touching.bottom and not player.jumping then
+    if controlDown("jump") and playerTouching("bottom") and not player.jumping then
         player.jumping = true
         player.body:setLinearVelocity(x, 0) -- reset current y velocity before jumping
         player.body:applyLinearImpulse(0, -player.jump_speed)
@@ -300,9 +352,7 @@ end
 local function spawnColliders(from, to, type, isSensor, sx, sy)
     -- Clear out whatever was in the destination since they may be re-used
     for i = 1, #to do
-        to[i].fixture:destroy()
-        to[i].body:destroy()
-        to[i].shape:release()
+        clearBox2d(to[i])
         to[i] = nil
     end
 
@@ -330,38 +380,65 @@ local function spawnColliders(from, to, type, isSensor, sx, sy)
     end
 end
 
-local function loadLevel(num)
+local function spawnEnemy(name)
+    local img = assets["enemy_" .. name .. ".png"] or loadAsset("enemy_" .. name .. ".png")
+    local o = {}
+
+    o.body = love.physics.newBody(boxworld, -32, -32, "dynamic")
+    o.shape = love.physics.newCircleShape(img:getWidth() / 2 - 0.1)
+    o.fixture = love.physics.newFixture(o.body, o.shape, 1)
+
+    o.body:setFixedRotation(true)
+    o.body:setMass(1)
+    o.body:setUserData({type = "enemy"})
+
+    return o
+end
+
+local function spawnEnemies()
+    for i, o in pairs(world.objects.enemy or {}) do
+        -- Extract name and movement from name
+        local name, move = o.name:match("^([^_]+)_(.+)$")
+        o.box = spawnEnemy(name)
+        o.box.body:setX(o.x)
+        o.box.body:setY(o.y)
+
+        local d = o.box.body:getUserData()
+        d.id = i
+        o.box.body:setUserData(d)
+
+        o.name = name
+
+        -- Path stuff
+        local a, b = move:match("^(%-?%d+)_(%-?%d+)$")
+        o.path = {a = tonumber(a), b = tonumber(b)}
+    end
+end
+
+function world.loadLevel(num)
     world.map, world.foreground = loadMap("media/level_" .. num .. ".lua")
 
     spawnColliders("collisions", world.colliders, "collider", false)
     spawnColliders("deathzones", world.deathzones, "deathzone", true, 0.8)
     spawnColliders("goals", world.goals, "goal")
 
+    -- Clear objects
+    for _, set in pairs(world.objects or {}) do
+        for _, o in pairs(set) do
+            if o.box then clearBox2d(o.box) end
+        end
+    end
+
     world.objects = {}
     for _, o in pairs(world.map.layers["objects"].objects) do
         world.objects[o.type] = world.objects[o.type] or {}
         table.insert(world.objects[o.type], o)
     end
+
+    spawnEnemies()
 end
 
 world.update = function(dtime)
-    local zones = currentZones()
-
-    if zones.deathzone and player.alive then
-        player:die()
-    end
-
-    if zones.goal then
-        player.current_level = player.current_level + 1
-        loadLevel(player.current_level)
-        player:spawn()
-
-        playCutscene("test", function()
-            scene.update = world.update
-            scene.draw = world.draw
-        end)
-    end
-
     handleMovement() -- player movement
     player:update(dtime)
 
@@ -373,10 +450,14 @@ end
 
 world.draw = function()
     love.graphics.draw(assets["background.png"], 0, 0)
-
     local params = {-math.max(0, player.body:getX() - window.center), 0, window.scale, window.scale}
-
     world.map:draw(unpack(params))
+
+    for _, o in pairs(world.objects.enemy or {}) do
+        local img = assets["enemy_" .. o.name .. ".png"]
+        love.graphics.draw(img, o.box.body:getX() + params[1] - img:getWidth() / 2, o.box.body:getY() - img:getHeight() / 2)
+    end
+
     player:draw()
     world.foreground:draw(unpack(params))
 end
@@ -387,13 +468,13 @@ love.load = function()
     love.window.setMode(w, h, {resizable = true})
     -- love.window.maximize()
 
+    player:init()
+
     playCutscene("test", function()
         scene.update = world.update
         scene.draw = world.draw
 
-        loadLevel(1)
-
-        player:init()
+        world.loadLevel(1)
         player:spawn()
     end)
 
@@ -432,6 +513,7 @@ local DEBUG = {
     colliders = false,
     deathzones = false,
     goals = false,
+    enemies = false,
     player = false,
 }
 
@@ -452,6 +534,17 @@ debugDraw = function()
     if DEBUG.goals then drawZones(world.goals, {0, 1, 0, 0.5}, "fill") end
     if DEBUG.colliders then drawZones(world.colliders, {1, 1, 1}, "line") end
 
+    if DEBUG.enemies then
+        love.graphics.setColor(0, 0, 1)
+
+        for _, o in pairs(world.objects.enemy or {}) do
+            local x, y = o.box.body:getX() - math.max(0, player.body:getX() - window.center), o.box.body:getY()
+            love.graphics.circle("line", x, y, o.box.shape:getRadius())
+        end
+
+        love.graphics.setColor(1, 1, 1)
+    end
+
     if DEBUG.player then
         love.graphics.setColor(0, 1, 0)
 
@@ -461,6 +554,15 @@ debugDraw = function()
 
         -- love.graphics.polygon("line", verts)
         love.graphics.circle("line", x, y, player.shape:getRadius())
+
+        love.graphics.setColor(0, 1, 1)
+
+        for _, side in pairs(player.edges) do
+            local verts = {side.shape:getPoints()}
+            for i = 1, #verts do verts[i] = verts[i] + (i % 2 == 0 and y or x) end
+            love.graphics.line(unpack(verts))
+        end
+
         love.graphics.setColor(1, 1, 1)
     end
 end

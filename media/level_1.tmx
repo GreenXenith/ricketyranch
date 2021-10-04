@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<map version="1.5" tiledversion="1.7.0" orientation="orthogonal" renderorder="right-down" width="128" height="16" tilewidth="16" tileheight="16" infinite="0" nextlayerid="8" nextobjectid="87">
+<map version="1.5" tiledversion="1.7.0" orientation="orthogonal" renderorder="right-down" width="128" height="16" tilewidth="16" tileheight="16" infinite="0" nextlayerid="8" nextobjectid="88">
  <editorsettings>
   <export target="level_1.lua" format="lua"/>
  </editorsettings>
@@ -143,6 +143,9 @@
  </objectgroup>
  <objectgroup color="#00aaff" id="4" name="objects">
   <object id="86" type="player" x="96" y="192">
+   <point/>
+  </object>
+  <object id="87" name="crow_-1_1" type="enemy" x="400" y="112">
    <point/>
   </object>
  </objectgroup>
