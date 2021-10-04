@@ -1,6 +1,6 @@
 local sti = require("lib/sti")
 local anim8 = require("lib/anim8")
-local cutscenes = dofile("cutscenes.lua")
+local cutscenes = love.filesystem.load("cutscenes.lua")()
 
 local assets = {}
 
