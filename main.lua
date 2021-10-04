@@ -164,6 +164,15 @@ local player = {
 
         self.body:setFixedRotation(true)
         self.body:setMass(1)
+
+        self.sheet = loadAsset("horse2.png")
+        local grid = anim8.newGrid(32, 32, 64, 64)
+
+        self.walk_anim = anim8.newAnimation(grid(1, 2, 1, 1, 2, 2), 0.2)
+        self.jump_anim = anim8.newAnimation(grid(2, 1), 1)
+        self.idle_anim = anim8.newAnimation(grid(1, 1), 1)
+
+        self.state = "idle"
     end,
     spawn = function(self)
         self.body:setX(world.objects.player[1].x)
@@ -200,18 +209,20 @@ local player = {
         end)
     end,
     update = function(self, dtime)
+        self[self.state .. "_anim"]:update(dtime)
         if self.boom then self.boom:update(dtime) end
     end,
     draw = function(self)
-        local img = assets[self.texture]
+        -- local img = assets[self.texture]
         -- Keep player in center except when at map edge
-        local x, y = math.min(self.body:getX(), window.center) - img:getWidth() / 2 + ((self.boom or self.facing == 1) and 0 or img:getWidth()),
-                     self.body:getY() - img:getHeight() / 2
+        local x, y = math.min(self.body:getX(), window.center) - 32 / 2 + ((self.boom or self.facing == 1) and 0 or 32),
+                     self.body:getY() - 32 / 2
 
         if self.boom then -- draw explosion
             self.boom:draw(assets["boom.png"], x, y)
         else -- draw horse
-            love.graphics.draw(img, x, y, 0, self.facing, 1)
+            -- love.graphics.draw(img, x, y, 0, self.facing, 1)
+            self[self.state .. "_anim"]:draw(self.sheet, x, y, 0, self.facing, 1)
             local ename = "explosive_" .. self.current_level .. ".png"
             love.graphics.draw(assets[ename] or loadAsset(ename), x + 8 - (self.facing == 1 and 0 or 16), y - 8, 0, self.facing, 1)
         end
@@ -269,6 +280,8 @@ local contactCallbacks = {
                         scene.update = world.update
                         scene.draw = world.draw
                     end
+                else
+                    player.current_level = 1
                 end
 
                 playCutscene("level_" .. player.current_level - 1, callback)
@@ -320,7 +333,17 @@ local function handleMovement()
 
     player.body:setLinearVelocity(x, y)
 
-    if y >= 0 then player.jumping = false end
+    if y >= 0 then player.jumping = false player.state = "idle" end
+
+    if x ~= 0 then
+        player.state = "walk"
+    else
+        player.state = "idle"
+    end
+
+    if not playerTouching("bottom") then
+        player.state = "jump"
+    end
 
     if controlDown("jump") and playerTouching("bottom") and not player.jumping then
         player.jumping = true
@@ -412,7 +435,6 @@ local function spawnEnemies()
 end
 
 function world.loadLevel(num)
-    player.current_level = num
     world.map, world.foreground = loadMap("media/level_" .. num .. ".lua")
 
     spawnColliders("collisions", world.colliders, "collider", false)
