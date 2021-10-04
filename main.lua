@@ -1,17 +1,12 @@
 --[[
 TODO
 - Mechanics
- - Object spawning
-  - Collectables (optional)
- - Enemies
-  - Defined path
  - Title screen
+ - Credits
  - Level titles
  - Item carry
- - OPTIONAL: Collectables
-  - Apples (coins)
-  - Specials (horseshoes, trophies, etc)
- - Credits
+ - OPTIONAL: Collectables (apples, horsehoes, trophies, etc)
+ - OPTIONAL: Enemy paths
 - Assets
  - Horse walk
  - OPTIONAL: Background detail
@@ -253,6 +248,8 @@ local contactCallbacks = {
     enemy = {
         begin = function(_, o, c)
             local ny = ({c:getNormal()})[2]
+            if (c:getFixtures()) == o then ny = -ny end
+
             if ny > math.sqrt(2) / 2 then -- if on top, destroy enemy
                 local id = o:getBody():getUserData().id
                 clearBox2d(world.objects.enemy[id].box)
