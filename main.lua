@@ -222,6 +222,8 @@ local player = {
             self.boom:draw(assets["boom.png"], x, y)
         else -- draw horse
             love.graphics.draw(img, x, y, 0, self.facing, 1)
+            local ename = "explosive_" .. self.current_level .. ".png"
+            love.graphics.draw(assets[ename] or loadAsset(ename), x + 8 - (self.facing == 1 and 0 or 16), y - 8, 0, self.facing, 1)
         end
     end,
 }
