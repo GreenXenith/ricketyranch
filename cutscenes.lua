@@ -7,7 +7,7 @@ return {
                 width = 256,
                 height = 256,
                 loop = true,
-                timeout = 0,--5,
+                timeout = 5,
                 duration = 0.5,
             },
             {
@@ -16,7 +16,7 @@ return {
                 width = 256,
                 height = 256,
                 loop = false,
-                timeout = 0,--3,
+                timeout = 3,
                 duration = {0.1, 0.2, 0.2, 0.3, 1},
             },
             {
@@ -25,7 +25,7 @@ return {
                 width = 256,
                 height = 256,
                 loop = false,
-                timeout = 0,--3,
+                timeout = 3,
                 duration = 0.3,
             },
             {
@@ -34,7 +34,7 @@ return {
                 width = 256,
                 height = 256,
                 loop = true,
-                timeout = 0,--4,
+                timeout = 4,
                 duration = 0.1,
             },
             {
@@ -43,7 +43,7 @@ return {
                 width = 256,
                 height = 256,
                 loop = false,
-                timeout = 0, ---1,
+                timeout = -1,
                 duration = {0.25, 0.25, 0.25, 0.25, 0.4, 0.5, 1},
             },
             {
@@ -52,7 +52,7 @@ return {
                 width = 256,
                 height = 256,
                 loop = false,
-                timeout = 0, --3,
+                timeout = 3,
                 duration = 0.1,
             },
             {
