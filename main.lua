@@ -248,17 +248,22 @@ local contactCallbacks = {
         begin = function() after(0, player.die, player) end
     },
     enemy = {
-        begin = function(_, o, c)
-            local ny = ({c:getNormal()})[2]
-            if (c:getFixtures()) == o then ny = -ny end
+        begin = function(_, other, contact)
+            after(0, function(o, c)
+                local ny = ({c:getNormal()})[2]
+                if (c:getFixtures()) == o then ny = -ny end
 
-            if ny > math.sqrt(2) / 2 then -- if on top, destroy enemy
-                local id = o:getBody():getUserData().id
-                clearBox2d(world.objects.enemy[id].box)
-                world.objects.enemy[id] = nil
-            else -- otherwise die
-                after(0, player.die, player)
-            end
+                if ny > math.sqrt(2) / 2 then -- if on top, destroy enemy
+                    local id = o:getBody():getUserData().id
+                    clearBox2d(world.objects.enemy[id].box)
+                    world.objects.enemy[id] = nil
+
+                    player.jumping = true
+                    player.body:applyLinearImpulse(0, -player.jump_speed * (controlDown("jump") and 1.2 or 0.5))
+                else -- otherwise die
+                    after(0, player.die, player)
+                end
+            end, other, contact)
         end
     },
     goal = {
