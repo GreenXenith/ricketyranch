@@ -2,13 +2,10 @@
 TODO
 - Mechanics
  - Object spawning
-  - Enemies
   - Collectables (optional)
  - Enemies
   - Defined path
-  - Stomp-to-die
  - Title screen
- - Window title
  - Level titles
  - Item carry
  - OPTIONAL: Collectables
@@ -467,6 +464,8 @@ love.load = function()
     local w, h = love.graphics.getDimensions()
     love.window.setMode(w, h, {resizable = true})
     -- love.window.maximize()
+    love.window.setTitle("Rickety Ranch")
+    love.window.setIcon(love.image.newImageData("media/icon.png"))
 
     player:init()
 
