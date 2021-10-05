@@ -250,11 +250,11 @@ local contactCallbacks = {
     },
     enemy = {
         begin = function(_, other, contact)
-            after(0, function(o, c)
-                local ny = ({c:getNormal()})[2]
-                if (c:getFixtures()) == o then ny = -ny end
+            local ny = ({contact:getNormal()})[2]
+            if (contact:getFixtures()) == other then ny = -ny end
 
-                if ny > math.sqrt(2) / 2 then -- if on top, destroy enemy
+            after(0, function(o, n)
+                if n > math.sqrt(2) / 2 then -- if on top, destroy enemy
                     local id = o:getBody():getUserData().id
                     clearBox2d(world.objects.enemy[id].box)
                     world.objects.enemy[id] = nil
@@ -264,7 +264,7 @@ local contactCallbacks = {
                 else -- otherwise die
                     after(0, player.die, player)
                 end
-            end, other, contact)
+            end, other, ny)
         end
     },
     goal = {
