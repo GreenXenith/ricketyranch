@@ -145,7 +145,7 @@ local player = {
 
         self.body = love.physics.newBody(boxworld, -32, -32, "dynamic")
         -- self.shape = love.physics.newRectangleShape(img:getWidth() - 1, img:getHeight() - 1)
-        self.shape = love.physics.newCircleShape(w / 2 - 0.1)
+        self.shape = love.physics.newCircleShape(w / 2 - 0.2)
         self.fixture = love.physics.newFixture(self.body, self.shape, 1)
 
         -- Edge sensors
