@@ -260,7 +260,8 @@ local contactCallbacks = {
                     world.objects.enemy[id] = nil
 
                     player.jumping = true
-                    player.body:applyLinearImpulse(0, -player.jump_speed * (controlDown("jump") and 1.2 or 0.5))
+                    player.body:setLinearVelocity((player.body:getLinearVelocity()), 0)
+                    player.body:applyLinearImpulse(0, -player.jump_speed * (controlDown("jump") and 0.9 or 0.5))
                 else -- otherwise die
                     after(0, player.die, player)
                 end
