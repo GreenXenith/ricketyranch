@@ -254,7 +254,7 @@ local contactCallbacks = {
             if (contact:getFixtures()) == other then ny = -ny end
 
             after(0, function(o, n)
-                if n > math.sqrt(2) / 2 then -- if on top, destroy enemy
+                if n > 0.5 then -- if on top, destroy enemy
                     local id = o:getBody():getUserData().id
                     clearBox2d(world.objects.enemy[id].box)
                     world.objects.enemy[id] = nil
