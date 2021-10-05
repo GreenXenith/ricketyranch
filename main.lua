@@ -140,8 +140,7 @@ local player = {
     alive = true,
     init = function(self)
         loadAsset("boom.png")
-        local img = loadAsset(self.texture)
-        local w, h = img:getWidth(), img:getHeight()
+        local w, h = 32, 32 -- img:getWidth(), img:getHeight()
 
         self.body = love.physics.newBody(boxworld, -32, -32, "dynamic")
         -- self.shape = love.physics.newRectangleShape(img:getWidth() - 1, img:getHeight() - 1)
@@ -165,7 +164,7 @@ local player = {
         self.body:setFixedRotation(true)
         self.body:setMass(1)
 
-        self.sheet = loadAsset("horse2.png")
+        self.sheet = loadAsset(self.texture)
         local grid = anim8.newGrid(32, 32, 64, 64)
 
         self.walk_anim = anim8.newAnimation(grid(1, 2, 1, 1, 2, 2), 0.2)
@@ -213,7 +212,6 @@ local player = {
         if self.boom then self.boom:update(dtime) end
     end,
     draw = function(self)
-        -- local img = assets[self.texture]
         -- Keep player in center except when at map edge
         local x, y = math.min(self.body:getX(), window.center) - 32 / 2 + ((self.boom or self.facing == 1) and 0 or 32),
                      self.body:getY() - 32 / 2
@@ -221,7 +219,6 @@ local player = {
         if self.boom then -- draw explosion
             self.boom:draw(assets["boom.png"], x, y)
         else -- draw horse
-            -- love.graphics.draw(img, x, y, 0, self.facing, 1)
             self[self.state .. "_anim"]:draw(self.sheet, x, y, 0, self.facing, 1)
             local ename = "explosive_" .. self.current_level .. ".png"
             love.graphics.draw(assets[ename] or loadAsset(ename), x + 8 - (self.facing == 1 and 0 or 16), y - 8, 0, self.facing, 1)
